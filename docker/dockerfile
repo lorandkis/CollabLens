@@ -1,0 +1,16 @@
+FROM php:8.2-apache
+
+RUN apt-get update && \
+    apt-get install -y cronolog default-mysql-client && \
+    docker-php-ext-install pdo pdo_mysql && \
+    a2enmod rewrite
+
+RUN mkdir -p /var/log/custom-logs
+
+COPY docker/apache-site.conf /etc/apache2/sites-available/000-default.conf
+COPY docker/php.ini /usr/local/etc/php/conf.d/custom-php.ini
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

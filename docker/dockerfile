@@ -1,12 +1,33 @@
 FROM php:8.2-apache
 
+# Install necessary system packages
 RUN apt-get update && \
-    apt-get install -y cronolog default-mysql-client && \
-    docker-php-ext-install pdo pdo_mysql && \
+    apt-get install -y \
+    cronolog \
+    default-mysql-client \
+    libzip-dev \
+    zip \
+    unzip \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev && \
+    docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    docker-php-ext-install gd zip pdo pdo_mysql && \
     a2enmod rewrite
 
-RUN mkdir -p /var/log/custom-logs
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+WORKDIR /var/www/html
+
+# Add Composer files first (layer caching)
+COPY composer.json ./
+RUN composer install
+
+# Copy full project
+COPY . /var/www/html
+
+# Permissions and entry
 COPY docker/apache-site.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/custom-php.ini
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh

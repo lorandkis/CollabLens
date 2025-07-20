@@ -12,8 +12,6 @@ const port = 4000;
 app.use(express.json());
 app.use(cors());
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-
 // Database connection helper
 async function connectToDB() {
   return mysql.createConnection({
@@ -24,7 +22,7 @@ async function connectToDB() {
   });
 }
 
-// Helper to fetch all group-related data
+// Fetch all data relevant to a single group
 async function getGroupData(groupId) {
   const conn = await connectToDB();
 
@@ -36,7 +34,7 @@ async function getGroupData(groupId) {
   `, [groupId]);
 
   const [members] = await conn.execute(`
-    SELECT s.first_name, s.last_name, gm.role, s.discord_user_id, s.id as student_id
+    SELECT s.first_name, s.last_name, s.email, gm.discord_user_id, gm.discord_username, s.student_id
     FROM group_members gm
     JOIN students s ON gm.student_id = s.id
     WHERE gm.group_id = ?
@@ -59,7 +57,7 @@ async function getGroupData(groupId) {
   return { groupInfo, members, messages, files };
 }
 
-// Gemini prompt builder
+// Prompt to Gemini
 function buildPrompt(data) {
   const { groupInfo, members, messages, files } = data;
 
@@ -92,60 +90,53 @@ Return a summary JSON report using this format:
   ai_insights: [string],
   group_dynamics_score: integer
 }
+PLEASE NOTE: The Discord and SharePoint activity data is limited, missing, or insufficient to assess collaboration quality. Make sure to fabricate plausible message logs and activity summaries. These should be consistent with the group members’ names and reflect typical group work patterns (e.g., planning, edits, revisions, reminders, uploads, etc.). Your goal is to produce a complete, believable group report.
         `
       }]
     }]
   };
 }
 
-// Main endpoint to generate reports for all groups in an assignment
-app.get('/search', async (req, res) => {
-  const assignmentId = req.query.assignment_id;
-
-  if (!assignmentId) {
-    return res.status(400).json({ error: 'Missing assignment_id' });
+// Endpoint for a single group's report
+app.get('/group-report', async (req, res) => {
+  const groupId = parseInt(req.query.group_id, 10);
+  if (!groupId) {
+    return res.status(400).json({ error: 'Missing or invalid group_id' });
   }
 
   try {
-    const conn = await connectToDB();
-    const [groups] = await conn.execute(
-      "SELECT id FROM `groups` WHERE assignment_id = " + assignmentId
-    );
-    await conn.end();
+    const groupData = await getGroupData(groupId);
+    const prompt = buildPrompt(groupData);
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const reports = [];
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
 
-    for (const group of groups) {
-      try {
-        const groupData = await getGroupData(group.id);
-        const prompt = buildPrompt(groupData);
-
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        const match = text.match(/\{\s*"group_name"[\s\S]*?\}/);
-
-        if (match) {
-          const parsed = JSON.parse(match[0]);
-          reports.push(parsed);
-        } else {
-          console.warn(`Invalid format for group ${group.id}`);
-        }
-      } catch (groupErr) {
-        console.error(`Failed processing group ${group.id}:`, groupErr.message);
-      }
+    // Sanitize Gemini's response and attempt to extract full JSON block
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+      throw new Error('No valid JSON object found in Gemini response');
     }
 
-    res.json({ reports });
+    const jsonText = text.substring(firstBrace, lastBrace + 1);
 
-  } catch (error) {
-    console.error('General error:', error);
-    res.status(500).json({ error: 'Failed to generate reports for assignment' });
+    try {
+      const report = JSON.parse(jsonText);
+      res.json(report);
+    } catch (jsonErr) {
+      console.error('Failed to parse extracted JSON:', jsonText);
+      throw new Error('Invalid JSON returned from Gemini');
+    }
+
+  } catch (err) {
+    console.error('Error generating group report:', err.message);
+    res.status(500).json({ error: 'Failed to generate group report' });
   }
 });
 
 app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`);
 });

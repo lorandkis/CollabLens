@@ -1,0 +1,32 @@
+/* custom.css commented out on user request (2025-10-09)
+
+   The full original file has been backed up to:
+     src/reasources/css/custom.css.bak
+
+   To restore the custom styles, restore that backup file to custom.css or
+   checkout the backup branches:
+     backup/ui-changes-20251008-141021
+     backup/manual-edits-20251008-141224
+
+*/
+
+/* No active custom styles below — the site will use default UIkit styles. */
+
+/* Pagination spacing fix (small, targeted override). This restores a sensible gap
+   between DataTables pagination controls (Previous · 1 2 3 · Next) across pages.
+   Kept minimal so the rest of the custom theme remains inactive.
+*/
+.dataTables_wrapper .dataTables_paginate .paginate_button,
+.dataTables_wrapper .dataTables_paginate a,
+.dataTables_wrapper .dataTables_paginate .paginate_button a {
+  margin: 0 6px !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  padding: 6px 10px !important;
+  border-radius: 6px;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  font-weight: 600;
+}
+
+

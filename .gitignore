@@ -14,6 +14,7 @@ discord-bot/__pycache__/
 discord-bot/discord.log
 
 # Node
+node-api/
 node_modules/
 npm-debug.log*
 yarn-debug.log*

@@ -216,11 +216,16 @@ try {
             $headers = array_map(fn($h) => strtolower(trim((string)$h)), $rows[0]);
             // heuristics for column indexes
             $groupIdx = null; $studentIdIdx = null; $emailIdx = null; $nameIdx = null;
+            $firstNameIdx = null; $lastNameIdx = null;
             foreach ($headers as $i => $h) {
               if ($groupIdx === null && preg_match('/group/', $h)) $groupIdx = $i;
               if ($studentIdIdx === null && preg_match('/student.*id|student_id|studentid|student number|sid|s id/', $h)) $studentIdIdx = $i;
               if ($emailIdx === null && preg_match('/email/', $h)) $emailIdx = $i;
-              if ($nameIdx === null && preg_match('/name/', $h)) $nameIdx = $i;
+              // Check for separate first/last name columns
+              if ($firstNameIdx === null && preg_match('/first.*name|firstname|first_name/', $h)) $firstNameIdx = $i;
+              if ($lastNameIdx === null && preg_match('/last.*name|lastname|last_name|surname/', $h)) $lastNameIdx = $i;
+              // Fall back to generic "name" column if no first/last found
+              if ($nameIdx === null && $firstNameIdx === null && $lastNameIdx === null && preg_match('/^name$|full.*name|fullname/', $h)) $nameIdx = $i;
             }
             // fallback: first col as group, others for student
             for ($r = 1; $r < count($rows); $r++) {
@@ -230,12 +235,21 @@ try {
 
               $studentId = $studentIdIdx !== null ? ($row[$studentIdIdx] ?? null) : null;
               $email = $emailIdx !== null ? ($row[$emailIdx] ?? null) : null;
-              $fullname = $nameIdx !== null ? ($row[$nameIdx] ?? null) : null;
+              
+              // Handle name parsing: prefer separate first/last columns, fall back to full name
               $first = $last = null;
-              if ($fullname) {
-                $parts = preg_split('/\s+/', trim($fullname));
-                $first = $parts[0] ?? null;
-                $last = count($parts) > 1 ? implode(' ', array_slice($parts,1)) : null;
+              if ($firstNameIdx !== null && $lastNameIdx !== null) {
+                // Separate columns provided
+                $first = $row[$firstNameIdx] ?? null;
+                $last = $row[$lastNameIdx] ?? null;
+              } elseif ($nameIdx !== null) {
+                // Single name column - split it
+                $fullname = $row[$nameIdx] ?? null;
+                if ($fullname) {
+                  $parts = preg_split('/\s+/', trim($fullname));
+                  $first = $parts[0] ?? null;
+                  $last = count($parts) > 1 ? implode(' ', array_slice($parts,1)) : null;
+                }
               }
 
               // ensure group bucket

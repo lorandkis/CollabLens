@@ -102,7 +102,7 @@ try {
       g.sharepoint_folder_id,
       COUNT(gm.id) AS member_count,
       GROUP_CONCAT(
-        DISTINCT CONCAT(s.first_name, ' ', s.last_name, ' (', s.student_id, ')')
+        DISTINCT CONCAT(s.first_name, ' ', s.last_name, ' (', s.email, ')')
         ORDER BY s.last_name, s.first_name SEPARATOR ', '
       ) AS members
     FROM assignment_groups g
@@ -117,19 +117,19 @@ try {
 
     // Students
     $stmt = $pdo->prepare("
-        SELECT 
-            s.id AS sid,
-            s.student_id,
-            s.first_name,
-            s.last_name,
-            s.email,
-            MAX(gm.discord_username) AS discord_username,
-            MAX(gm.discord_user_id)  AS discord_user_id
+    SELECT 
+      s.id AS sid,
+      s.email AS email,
+      s.first_name,
+      s.last_name,
+      s.email,
+      MAX(gm.discord_username) AS discord_username,
+      MAX(gm.discord_user_id)  AS discord_user_id
     FROM students s
     INNER JOIN group_members gm ON gm.student_id = s.id
     INNER JOIN assignment_groups g ON g.id = gm.group_id
     WHERE g.assignment_id = ?
-        GROUP BY s.id, s.student_id, s.first_name, s.last_name, s.email
+    GROUP BY s.id, s.email, s.first_name, s.last_name, s.email
         ORDER BY s.last_name, s.first_name
     ");
     $stmt->execute([$assignmentId]);
@@ -302,7 +302,7 @@ try {
                   $discord = $s['discord_username'] ?: $s['discord_user_id'];
                 ?>
                   <tr>
-                    <td><?php echo h($s['student_id']); ?></td>
+                    <td><?php echo h($s['email']); ?></td>
                     <td><?php echo h($name !== '' ? $name : '—'); ?></td>
                     <td><?php echo h($s['email'] ?: '—'); ?></td>
                     <td><?php echo h($discord ?: '—'); ?></td>

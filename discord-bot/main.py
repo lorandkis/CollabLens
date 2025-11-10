@@ -74,7 +74,12 @@ async def init_db_pool():
 
 # Helper to check if a channel is under the group category
 def is_group_channel(channel):
-    return channel.category and channel.category.name == "📁 Group Channels"
+    # Group channels are created with the name pattern: <assignment_title>(<group_name>)
+    try:
+        name = getattr(channel, 'name', '') or ''
+        return '(' in name and name.endswith(')')
+    except Exception:
+        return False
 @bot.event
 async def on_message(message):
     # Ignore bot's own messages
@@ -103,12 +108,9 @@ async def on_message(message):
     # Allow commands to be processed
     await bot.process_commands(message)
 
-# Helper to get or create the group channels category
+# Helper kept for compatibility but we no longer create a category; channels are created at top-level
 async def get_group_category(guild):
-    for category in guild.categories:
-        if category.name == "📁 Group Channels":
-            return category
-    return await guild.create_category("📁 Group Channels")
+    return None
 
 @bot.event
 async def on_ready():
@@ -294,7 +296,8 @@ async def createGroups(ctx, assignment_id: int):
             await ctx.send("No groups found for this assignment.")
             return
 
-        category = await get_group_category(ctx.guild)
+        # We intentionally do NOT create a category; create channels at the top-level
+        category = None
         for group in groups:
             channel_name = f"{assignment['title']}({group['name']})"
             # Check if channel exists by discord_channel_id or name
@@ -305,11 +308,12 @@ async def createGroups(ctx, assignment_id: int):
                 except Exception:
                     channel = None
             if not channel:
-                channel = discord.utils.get(category.channels, name=channel_name)
+                # search all guild channels by name
+                channel = discord.utils.get(ctx.guild.channels, name=channel_name)
 
             # Create the channel if missing
             if not channel:
-                channel = await ctx.guild.create_text_channel(channel_name, category=category)
+                channel = await ctx.guild.create_text_channel(channel_name)
                 # Update discord_channel_id in DB
                 async with conn.cursor() as cur2:
                     await cur2.execute("UPDATE assignment_groups SET discord_channel_id = %s WHERE id = %s", (str(channel.id), group['id']))
@@ -344,8 +348,8 @@ async def createGroups(ctx, assignment_id: int):
 
 
 @bot.command()
-async def register(ctx, student_id: str):
-    """Register a student and add them to their group channels."""
+async def register(ctx, email: str):
+    """Register a student by email and add them to their group channels."""
     global db_pool
     if db_pool is None:
         await ctx.send("Database not initialized; attempting to connect...")
@@ -361,8 +365,8 @@ async def register(ctx, student_id: str):
         try:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "UPDATE group_members gm JOIN students s ON gm.student_id = s.id SET gm.status = 'registered', gm.discord_user_id = %s, gm.discord_username = %s WHERE s.student_id = %s",
-                    (discord_id, discord_username, student_id)
+                    "UPDATE group_members gm JOIN students s ON gm.student_id = s.id SET gm.status = 'registered', gm.discord_user_id = %s, gm.discord_username = %s WHERE s.email = %s",
+                    (discord_id, discord_username, email)
                 )
                 affected = cur.rowcount
                 await conn.commit()
@@ -383,9 +387,9 @@ async def register(ctx, student_id: str):
                     JOIN group_members gm ON gm.group_id = ag.id
                     JOIN assignments a ON ag.assignment_id = a.id
                     JOIN students s ON gm.student_id = s.id
-                    WHERE s.student_id = %s
+                    WHERE s.email = %s
                     """,
-                    (student_id,)
+                    (email,)
                 )
                 groups = await cur2.fetchall()
         except Exception as e:
@@ -446,8 +450,7 @@ async def format(ctx, class_id: int):
     announcement = await ctx.guild.create_text_channel("📢announcements", overwrites=get_announcement_overwrites(ctx))
     register = await ctx.guild.create_text_channel("📝register", overwrites=get_register_overwrites(ctx))
 
-    # Create category
-    category = await ctx.guild.create_category("📁 Group Channels") #
+    # We no longer create a dedicated category for group channels; channels are created at top-level
 
     # Send and pin welcome message in announcements channel
     welcome_message = (
@@ -459,7 +462,7 @@ Here you will **communicate and work with your team** to complete class projects
 \n────────────────────────────────\n
 :pushpin: **Key Channels**  
 \n- :loudspeaker: **#announcements** - Official updates and important class info.
-- :pencil: **#register** - Please go here *right away* and run:  `/register student_id` This will place you in your private group channels.  
+- :pencil: **#register** - Please go here *right away* and run:  `/register <email>` This will place you in your private group channels.  
 \n────────────────────────────────\n
 :tada: **Happy Learning & Collaboration!** :tada:"""
     )
@@ -477,7 +480,7 @@ Here you will **communicate and work with your team** to complete class projects
     commands_help = (
         "🤖 Bot Commands:\n"
         "- `/createGroups <assignment_id>` - (owner) Create private group channels and assign registered members.\n"
-        "- `/register <student_id>` - Register yourself and be added to your group channels.\n"
+    "- `/register <email>` - Register yourself (by school email) and be added to your group channels.\n"
         "- `/format <class_id>` - (owner) Recreate server channels for this class (this command).\n"
         "More commands may be added in the future. If something fails, contact the instructor."
     )

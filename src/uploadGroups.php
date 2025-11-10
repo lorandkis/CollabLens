@@ -81,7 +81,6 @@ try {
         'groups',
         'group_members',
         'discord_messages',
-        'sharepoint_activities',
     ];
 
     foreach ($tables as $table) {

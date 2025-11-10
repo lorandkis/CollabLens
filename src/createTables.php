@@ -44,7 +44,8 @@ try {
 
         "CREATE TABLE IF NOT EXISTS students (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            student_id VARCHAR(50) UNIQUE NOT NULL,
+            -- student_id is optional now; emails are used as the primary identifier for uploads/registration
+            student_id VARCHAR(50) NULL,
             org_id INT NOT NULL,
             email VARCHAR(255) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NULL,
@@ -136,17 +137,7 @@ try {
             timestamp TIMESTAMP NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 
-        "CREATE TABLE IF NOT EXISTS sharepoint_activities (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            file_id VARCHAR(100) NOT NULL,
-            file_name VARCHAR(255) NOT NULL,
-            activity_type ENUM('created', 'modified', 'deleted', 'shared') NOT NULL,
-            user_id VARCHAR(255),
-            user_email VARCHAR(255),
-            folder_id VARCHAR(100),
-            timestamp TIMESTAMP NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+        /* sharepoint_activities table removed per request (not used by current CSV/upload flow) */
     ];
 
     foreach ($ddls as $sql) {

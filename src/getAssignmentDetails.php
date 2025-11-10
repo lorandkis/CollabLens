@@ -50,7 +50,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT 
             s.id,
-            s.student_id AS student_id,
+            s.email AS student_id,
             CONCAT(s.first_name, ' ', s.last_name) AS name,
             s.email AS school_email,
             gm.discord_username AS discord_user
@@ -58,7 +58,7 @@ try {
         JOIN group_members gm ON s.id = gm.student_id
         JOIN assignment_groups g ON g.id = gm.group_id
         WHERE g.assignment_id = ?
-        ORDER BY s.student_id
+    ORDER BY s.email
     ");
     $stmt->execute([$assignmentId]);
     $students = $stmt->fetchAll(PDO::FETCH_ASSOC);

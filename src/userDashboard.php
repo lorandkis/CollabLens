@@ -117,19 +117,20 @@ try {
 
   // Helper to insert or fetch existing student
   function fetchOrCreateStudent(PDO $pdo, ?string $studentId, ?string $email, ?string $first, ?string $last, ?int $orgId) {
-    // Try by student_id first
-    if ($studentId) {
-      $stmt = $pdo->prepare('SELECT id FROM students WHERE student_id = ? LIMIT 1');
-      $stmt->execute([$studentId]);
-      if ($r = $stmt->fetch(PDO::FETCH_ASSOC)) return (int)$r['id'];
-    }
-    // Then by email
+    // Prefer lookup by email (CSV provides email reliably); fall back to student_id if present
     if ($email) {
       $stmt = $pdo->prepare('SELECT id FROM students WHERE email = ? LIMIT 1');
       $stmt->execute([$email]);
       if ($r = $stmt->fetch(PDO::FETCH_ASSOC)) return (int)$r['id'];
     }
-    // Insert
+
+    if ($studentId) {
+      $stmt = $pdo->prepare('SELECT id FROM students WHERE student_id = ? LIMIT 1');
+      $stmt->execute([$studentId]);
+      if ($r = $stmt->fetch(PDO::FETCH_ASSOC)) return (int)$r['id'];
+    }
+
+    // Insert new student record
     $stmt = $pdo->prepare('INSERT INTO students (student_id, org_id, email, password_hash, first_name, last_name, email_verified_at) VALUES (?, ?, ?, NULL, ?, ?, NULL)');
     $sid = $studentId ?: null;
     $stmt->execute([$sid, $orgId, $email, $first, $last]);

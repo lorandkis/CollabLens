@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($exists) {
                     $errorMessage = 'An organization with that name already exists.';
                 } else {
-          $ins = $pdo->prepare('INSERT INTO organization (name, primary_location, created_at) VALUES (?, ?, NOW())');
+          $ins = $pdo->prepare('INSERT INTO organization (name, primary_location, joined_at) VALUES (?, ?, NOW())');
           $ins->execute([$orgName, $orgLocation]);
                     $_SESSION['signup_flash'] = 'Organization created successfully.';
                     header('Location: ' . $_SERVER['PHP_SELF']);
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $st->execute([$orgNameNew]);
           $orgId = $st->fetchColumn();
           if (!$orgId) {
-            $ins = $pdo->prepare('INSERT INTO organization (name, primary_location, created_at) VALUES (?, ?, NOW())');
+            $ins = $pdo->prepare('INSERT INTO organization (name, primary_location, joined_at) VALUES (?, ?, NOW())');
             $ins->execute([$orgNameNew, $orgLocation]);
             $orgId = (int)$pdo->lastInsertId();
           }

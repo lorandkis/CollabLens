@@ -1,5 +1,5 @@
 <?php
-iini_set('display_errors', '1');
+ini_set('display_errors', '1');
 error_reporting(E_ALL);
 
 // ---- Config via env, with sensible defaults ----

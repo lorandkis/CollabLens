@@ -5,7 +5,7 @@ WORKDIR /app
 # Copy requirements and install dependencies
 COPY requirments.txt .
 RUN pip install --no-cache-dir -r requirments.txt && \
-    pip install --no-cache-dir aiomysql
+    pip install --no-cache-dir aiomysql cryptography
 
 # Copy the rest of the application
 COPY . .
